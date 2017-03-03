@@ -2,7 +2,7 @@
 Downloads xkcd comics and converts them to a book
 
 # USAGE
-    xkcd.pdf [--no-pdf] [--toc] [--page-width PAGE_WIDTH] [--page-height PAGE_HEIGHT] RANGE OUTPUT
+    xkcdbk [--no-pdf] [--toc] [--page-width PAGE_WIDTH] [--page-height PAGE_HEIGHT] RANGE OUTPUT
 
 	    --no-pdf			  Do not convert to pdf, write html to output file instead.
 	    --toc				    Insert a table of contents at the beginning of the pdf (PDF ONLY).
