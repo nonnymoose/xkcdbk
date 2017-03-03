@@ -6,8 +6,8 @@ Downloads xkcd comics and converts them to a book
 
 		--no-pdf			Do not convert to pdf, write html to output file instead.
 		--toc				Insert a table of contents at the beginning of the pdf (PDF ONLY).
-		--page-width    PAGE_WIDTH	Make the page width PAGE_WIDTH (must be in real units, ex. 4in).
-		--page-height   PAGE_HEIGHT	Make the page height PAGE_HEIGHT (must be in real units, ex. 4in).
+		--page-width    PAGE_WIDTH		Make the page width PAGE_WIDTH (must be in real units, ex. 4in).
+		--page-height   PAGE_HEIGHT		Make the page height PAGE_HEIGHT (must be in real units, ex. 4in).
 		--help				Print this message
 		--uninstall			Take a guess. ;)
 
