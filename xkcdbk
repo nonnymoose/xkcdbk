@@ -12,6 +12,8 @@ usage() {
 	--toc				Insert a table of contents at the beginning of the pdf (PDF ONLY).
 	--page-width PAGE_WIDTH		Make the page width PAGE_WIDTH (must be in real units, ex. 4in).
 	--page-height PAGE_HEIGHT	Make the page height PAGE_HEIGHT (must be in real units, ex. 4in).
+	--help				Print this message
+	--uninstall			Take a guess. ;)
 
 	RANGE				A comma-seperated list of ranges to download, ex. 4-6,20,22.
 	OUTPUT				The full filename of the output file. A file extension will not automatically be added.
@@ -19,6 +21,23 @@ usage() {
 	The exit code will be 1 if an error is encountered, 2 if an unknown option is encountered, otherwise 0.
 	Note that it is usually safe to ignore HTTP errors in wkhtmltopdf output. The script will behave as so.
 	If you'd like to reconfigure xkcdbk, then delete \`$HOME/.xkcdbk\`."
+}
+uninstall() {
+	echo "Removing from path..."
+	if [[ "$(which xkcdbk)" ]]; then
+		sudo rm "$(which xkcdbk)"
+	else
+		echo -n "I am not on your path. Would you like to remove this script instead? (y/[n]) "
+		read answer
+		if [[ "$answer" == "y" ]]; then
+			rm "$0"
+		fi
+	fi
+	echo -n "Remove data directory \`$HOME/.xkcdbk\`? ([y]/n) "
+	read answer
+	if [[ "$answer" != "n" ]]; then
+		rm -rf "$HOME/.xkcdbk"
+	fi
 }
 if [[ ! -d "$DATADIR" ]]; then
 	if [[ -f "$DATADIR" ]]; then
@@ -33,7 +52,8 @@ if [[ ! -e "$DATADIR/beginning.html" || ! -e "$DATADIR/piece.html" ]]; then
 		wget --quiet --progress=bar "https://github.com/nonnymoose/xkcdbk/raw/master/beginning.html" -O "$DATADIR/beginning.html"
 		wget --quiet --progress=bar "https://github.com/nonnymoose/xkcdbk/raw/master/piece.html" -O "$DATADIR/piece.html"
 	else
-		echo "${ERROR}Then I will not work.${RESETTXXT}"
+		echo -e "${ERROR}Then I will not work.${RESETTXXT}"
+		exit 1
 	fi
 fi
 if [[ ! -e "$DATADIR/.configured" ]]; then
@@ -86,7 +106,7 @@ if [[ ! -e "$DATADIR/.configured" ]]; then
 	exit
 fi
 
-OPTS=$(getopt -o w:h:nt --long page-width:,page-height:,no-pdf,toc,help -- "$@" 2>&1)
+OPTS=$(getopt -o w:h:ntu --long page-width:,page-height:,no-pdf,toc,help,uninstall -- "$@" 2>&1)
 if [[ $? -ne 0 ]]; then
 	echo -e "${ERROR}Unknown option \"$(echo $OPTS | sed -r "s/getopt: unrecognized option '([^']*)'.*/\1/")\"${RESETTXXT}"
 	usage
@@ -120,6 +140,10 @@ while [[ $1 ]]; do
 		-t|--toc)
 			TOC=toc
 			shift
+			;;
+		-u|--uninstall)
+			uninstall
+			exit
 			;;
 		--)
 			shift
