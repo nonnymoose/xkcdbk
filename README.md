@@ -1,7 +1,7 @@
 # xkcdbk
 Downloads xkcd comics and converts them to a book
 
-# USAGE
+# Usage
     xkcdbk [--no-pdf] [--toc] [--page-width PAGE_WIDTH] [--page-height PAGE_HEIGHT] RANGE OUTPUT
 
 	    --no-pdf			  Do not convert to pdf, write html to output file instead.
@@ -15,3 +15,6 @@ Downloads xkcd comics and converts them to a book
 	The exit code will be 1 if an error is encountered, 2 if an unknown option is encountered, otherwise 0.
 	Note that it is usually safe to ignore HTTP errors in wkhtmltopdf output. The script will behave as so.
 	If you'd like to reconfigure xkcdbk, then delete \`$HOME/.xkcdbk\`.
+
+# Installing
+Simply download the main script, `xkcdbk`. It can take care of the rest.
