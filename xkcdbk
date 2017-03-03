@@ -1,0 +1,231 @@
+#!/bin/bash
+DATADIR="$HOME/.xkcdbk"
+COLUMNS=$(tput cols)
+ERROR="\033[0;1;31m"
+WARNING="\033[0;1;33m"
+NOTE="\033[0;1;34m"
+RESETTXXT="\033[0m"
+usage() {
+	echo "Usage: xkcd.pdf [--no-pdf] [--toc] [--page-width PAGE_WIDTH] [--page-height PAGE_HEIGHT] RANGE OUTPUT
+
+	--no-pdf			Do not convert to pdf, write html to output file instead.
+	--toc				Insert a table of contents at the beginning of the pdf (PDF ONLY).
+	--page-width PAGE_WIDTH		Make the page width PAGE_WIDTH (must be in real units, ex. 4in).
+	--page-height PAGE_HEIGHT	Make the page height PAGE_HEIGHT (must be in real units, ex. 4in).
+
+	RANGE				A comma-seperated list of ranges to download, ex. 4-6,20,22.
+	OUTPUT				The full filename of the output file. A file extension will not automatically be added.
+
+	The exit code will be 1 if an error is encountered, 2 if an unknown option is encountered, otherwise 0.
+	Note that it is usually safe to ignore HTTP errors in wkhtmltopdf output. The script will behave as so.
+	If you'd like to reconfigure xkcdbk, then delete \`$HOME/.xkcdbk\`."
+}
+if [[ ! -d "$DATADIR" ]]; then
+	if [[ -f "$DATADIR" ]]; then
+		rm "$DATADIR"
+	fi
+	mkdir "$DATADIR"
+fi
+if [[ ! -e "$DATADIR/beginning.html" || ! -e "$DATADIR/piece.html" ]]; then
+	echo -n "I need to download some files from http://github.com/nonnymoose/xkcdbk to run. May I do this now? ([y]/n) "
+	read answer
+	if [[ "$answer" != "n" ]]; then
+		wget --quiet --progress=bar "https://github.com/nonnymoose/xkcdbk/raw/master/beginning.html" -O "$DATADIR/beginning.html"
+		wget --quiet --progress=bar "https://github.com/nonnymoose/xkcdbk/raw/master/piece.html" -O "$DATADIR/piece.html"
+	else
+		echo "${ERROR}Then I will not work.${RESETTXXT}"
+	fi
+fi
+if [[ ! -e "$DATADIR/.configured" ]]; then
+	echo "Configuring..."
+	if [[ "$(which apt)" ]]; then
+		APT="sudo apt"
+	elif [[ "$(which apt-get)" ]]; then
+		APT="sudo apt-get"
+	else
+		echo -e "${WARNING}apt not found on this system! You may experience issues later.${RESETTXXT}" 1>&2
+		APT="echo Cannot run apt"
+	fi
+	if [[ ! "$(which wkhtmltopdf)" ]]; then
+		echo -ne "wkhtmltopdf is not installed on this system.\nxkcdbk can install the apt version, but keep in mind that tables of contents will not work. You are advised to download it from http://wkhtmltopdf.org.\nWould you like to install it? ([y]/n) "
+		read answer
+		if [[ $answer != "n" ]]; then
+			$APT install wkhtmltopdf
+		else
+			echo -e "${ERROR}Then I will not work.${RESETTXXT}\nGo use xkcd-dl, available from python's pip.\nhttps://github.com/prodicus/xkcd-dl" 1>&2
+			exit 1
+		fi
+	fi
+	if [[ ! "$(which wget)" ]]; then
+		echo -n "wget not found in this system. Would you like to install it? ([y]/n)"
+		read answer
+		if [[ $answer != "n" ]]; then
+			$APT install wget
+		else
+			echo -e "${ERROR}Then I will not work.${RESETTXXT}"
+			exit 1
+		fi
+	fi
+	if [[ ! "$(which $(basename $0))" ]]; then
+		echo -n "I have not been installed to your path. Would you like to? ([y]/n) "
+		read answer
+		if [[ $answer != "n" ]]; then
+			echo -n "Where? [/usr/bin] "
+			read answer
+			if [[ $answer ]]; then
+				sudo cp $0 $answer
+				[[ $? -eq 0 ]] || exit 1
+			else
+				sudo cp $0 /usr/bin/
+				[[ $? -eq 0 ]] || exit 1
+			fi
+		fi
+	fi
+	touch "$DATADIR/.configured"
+	echo "Configuration complete."
+	exit
+fi
+
+OPTS=$(getopt -o w:h:nt --long page-width:,page-height:,no-pdf,toc,help -- "$@" 2>&1)
+if [[ $? -ne 0 ]]; then
+	echo -e "${ERROR}Unknown option \"$(echo $OPTS | sed -r "s/getopt: unrecognized option '([^']*)'.*/\1/")\"${RESETTXXT}"
+	usage
+	exit 2
+fi
+eval set -- "$OPTS"
+PAGEWIDTH=8.5in
+PAGEHEIGHT=11in
+PDF=1
+TOC=
+while [[ $1 ]]; do
+	case $1 in
+		--help)
+			usage
+			exit
+			;;
+		-w|--page-width)
+			PAGEWIDTH=$2
+			shift
+			shift
+			;;
+		-h|--page-height)
+			PAGEHEIGHT=$2
+			shift
+			shift
+			;;
+		-n|--no-pdf)
+			PDF=0
+			shift
+			;;
+		-t|--toc)
+			TOC=toc
+			shift
+			;;
+		--)
+			shift
+			break
+			;;
+		*)
+			echo -e "${ERROR}Unknown option: \"$1\"${RESETTXXT}"
+			usage
+			exit 2
+			;;
+	esac
+done
+if [[ $(echo $1 | sed -r "s/(-|^)today//" | grep -P "[^\d-,]") || ! "$1" ]]; then
+	echo -e "${ERROR}Invalid range.${RESETTXXT}" 1>&2
+	exit 1
+fi
+RANGES=($(echo "$1"|sed "s/,/ /gi"))
+i=0
+while [[ "${RANGES[$i]}" ]]; do
+	if [[ $(echo ${RANGES[$i]} | grep -) ]]; then
+		BEGIN[$i]=$(echo ${RANGES[$i]} | sed -r "s/\-.*$//gi")
+		END[$i]=$(echo ${RANGES[$i]} | sed -r "s/^.*\-//gi")
+		if [[ ${END[$i]} == "today" ]]; then
+			END[$i]=$(wget xkcd.com --quiet -O - | sed -rn "/Permanent link to this comic/ s/^.*xkcd.com\/([0-9]*)\/.*$/\1/ip")
+		fi
+	else
+		BEGIN[$i]=${RANGES[$i]}
+		END[$i]=${RANGES[$i]}
+		if [[ ${END[$i]} == "today" ]]; then
+			END[$i]=$(wget xkcd.com --quiet -O - | sed -rn "/Permanent link to this comic/ s/^.*xkcd.com\/([0-9]*)\/.*$/\1/ip")
+			BEGIN[$i]=${END[$i]}
+		fi
+	fi
+	((i++))
+done
+shift
+OUTPUT=$1
+shift
+if [[ "$1" ]]; then
+	echo -e "${WARNING}Extra arguments. Ignored.${RESETTXXT}" 1>&2
+fi
+
+# echo "Page $PAGEWIDTH x $PAGEHEIGHT, pdf toggle $PDF, range $BEGIN-$END, output $OUTPUT."
+if [[ ! -d "$DATADIR/tmp" ]]; then mkdir "$DATADIR/tmp"; fi
+BOOKFILE="$DATADIR/tmp/book.html"
+PAGEFILE="$DATADIR/tmp/page.html"
+cat "$DATADIR/beginning.html" > "$BOOKFILE"
+#print progress bar
+i=0
+while [[ ${RANGES[$i]} ]]; do
+	echo "Downloading... ($((i + 1)) of ${#RANGES[*]})"
+	eval "echo -n [ && printf ' %.0s' {1..$((COLUMNS-2))} && echo -n ]"
+	eval "printf '\b%.0s' {1..$((COLUMNS-1))}"
+	CARTOON=${BEGIN[$i]}
+	while [[ $CARTOON -le ${END[$i]} ]]; do
+		if [[ -e $PAGEFILE ]]; then rm $PAGEFILE; fi
+		#put special cases in the elifs after the 404 if
+		if [[ $CARTOON -eq 404 ]]; then
+			NOTES="$NOTES
+	Not downloading 404 page for comic 404."
+		elif [[ $CARTOON -eq 1331 ]]; then
+			NOTES="$NOTES
+	Known to fail on 1331 Frequency, skipping."
+		else
+			wget --quiet xkcd.com/$CARTOON -O "$PAGEFILE"
+			TITLE=$(cat "$PAGEFILE" | sed -nr "/.*<div id=\"ctitle\">/ s/<div id=\"ctitle\">([^<]*)<\/div>/\1/gip")
+			TITLE=$(echo $TITLE | sed "s/&/\\\&/gi" | sed "s/\//\\\\\//gi")
+			IMAGE=$(cat "$PAGEFILE" | sed -nr "/.*<img src=\"\/\/imgs.xkcd.com\/comics\// s/.*<img src=\"\/\/(imgs.xkcd.com\/comics\/[^\"]*)\".*/\1/gip")
+			IMAGE=$(echo $IMAGE | sed "s/\//\\\\\//gi")
+			TITLETEXT=$(cat "$PAGEFILE" | sed -nr "/^.*<img src=\"\/\/imgs.xkcd.com\/comics\// s/.*title=\"(.*)\" alt=.*/\1/gip")
+			TITLETEXT=$(echo $TITLETEXT | sed "s/\&/\\\&/gi" | sed "s/\//\\\\\//gi")
+			rm $PAGEFILE
+			# echo "Image is $IMAGE, title is $TITLE, titletext is $TITLETEXT."
+			# exit
+			cat "$DATADIR/piece.html" | sed -r "s/TITLE/$TITLE/
+	s/IMGURL/http:\/\/$IMAGE/
+	s/TTEXT/$TITLETEXT/
+	s/NUMBER/$CARTOON/" >> "$BOOKFILE"
+		fi
+		if [[ $((${END[$i]}-${BEGIN[$i]})) -ne 0 ]]; then
+			SOFAR=$(((CARTOON-${BEGIN[$i]})*(COLUMNS-2)/(${END[$i]}-${BEGIN[$i]})))
+			if [[ $SOFAR -gt 0 ]]; then
+				eval "printf '=%.0s' {1..$SOFAR}"
+				eval "printf '\b%.0s' {1..$SOFAR}"
+			fi
+		else
+			eval "printf '=%.0s' {1..$((COLUMNS-2))}"
+		fi
+		((CARTOON++))
+	done
+	echo
+	((i++))
+done
+echo -e "</body>\n</html>" >> "$BOOKFILE"
+echo "Download finished."
+if [[ "$NOTES" ]]; then
+	echo -n "Some notes were generated during download:"
+	echo -e "${NOTE}${NOTES}${RESETTXXT}"
+fi
+if [[ $PDF -eq 1 ]]; then
+	echo "Converting to pdf..."
+	wkhtmltopdf -B 0 -L 0 -R 0 -T 0 --page-height $PAGEHEIGHT --page-width $PAGEWIDTH $TOC $BOOKFILE $OUTPUT
+	echo "Finished. Yay!"
+else
+	echo "Writing html to file..."
+	cp "$BOOKFILE" "$OUTPUT"
+	echo "Finished. Yay!"
+fi
+exit
