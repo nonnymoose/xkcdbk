@@ -17,4 +17,4 @@ Downloads xkcd comics and converts them to a book
 	If you'd like to reconfigure xkcdbk, then delete \`$HOME/.xkcdbk\`.
 
 # Installing
-Simply download the main script, `xkcdbk`. It can take care of the rest.
+Simply download and run the main script, `xkcdbk`. It can take care of the rest.
