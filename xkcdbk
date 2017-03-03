@@ -6,7 +6,7 @@ WARNING="\033[0;1;33m"
 NOTE="\033[0;1;34m"
 RESETTXXT="\033[0m"
 usage() {
-	echo "Usage: xkcd.pdf [--no-pdf] [--toc] [--page-width PAGE_WIDTH] [--page-height PAGE_HEIGHT] RANGE OUTPUT
+	echo "Usage: xkcdbk [--no-pdf] [--toc] [--page-width PAGE_WIDTH] [--page-height PAGE_HEIGHT] RANGE OUTPUT
 
 	--no-pdf			Do not convert to pdf, write html to output file instead.
 	--toc				Insert a table of contents at the beginning of the pdf (PDF ONLY).
