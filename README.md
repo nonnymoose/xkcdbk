@@ -11,7 +11,8 @@ Downloads xkcd comics and converts them to a book
 		--help							Print this message
 		--uninstall						Take a guess. ;)
 
-    	RANGE			  	A comma-seperated list of ranges to download, ex. 4-6,20,22. Also accepts the special value "today" as the upper bound.
+    	RANGE			  	A comma-seperated list of ranges to download, ex. 4-6,20,22.
+							Also accepts the special value "today" as the upper bound.
     	OUTPUT				The full filename of the output file. A file extension will not automatically be added.
 
 	The exit code will be 1 if an error is encountered, 2 if an unknown option is encountered, otherwise 0.
