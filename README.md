@@ -1,6 +1,8 @@
 # xkcdbk
 Downloads xkcd comics and converts them to a book
 
+**NOTICE:** This project has been moved to GitLab, and all future development will occur there. https://gitlab.com/nonnymoose/xkcdbk
+
 # Usage
     xkcdbk [--no-pdf] [--toc] [--page-width PAGE_WIDTH] [--page-height PAGE_HEIGHT] RANGE OUTPUT
 
